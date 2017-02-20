@@ -1,19 +1,7 @@
+
 assignments = []
 
-rows = 'ABCDEFGHI'
-cols = '123456789'
-
-def cross(a, b):
-	return [s+t for s in a for t in b]
-
-boxes = cross(rows, cols)
-row_units = [cross(r, cols) for r in rows]
-column_units = [cross(rows, c) for c in cols]
-square_units = [cross(rs, cs) for rs in ('ABC','DEF','GHI') for cs in ('123','456','789')]
-diag_units = [['A1','B2','C3','D4','E5','F6','G7','H8','I9'],['I1','H2','G3','F4','E5','D6','C7','B8','A9']]
-unitlist = row_units + column_units + diag_units + square_units
-units = dict((s, [u for u in unitlist if s in u]) for s in boxes)
-peers = dict((s, set(sum(units[s],[]))-set([s])) for s in boxes)
+from utils import *
 
 def assign_value(values, box, value):
     """
@@ -33,53 +21,30 @@ def naked_twins(values):
     Returns:
         the values dictionary with the naked twins eliminated from peers.
     """
-
     # Find all instances of naked twins
     # Eliminate the naked twins as possibilities for their peers
-    for unit in unitlist:
-        two_digits = [box for box in unit if len(values[box]) == 2]
-        if len(two_digits)>1:
-            for box in two_digits:
-                digits = values[box]
-                for twin in [twin for twin in two_digits if twin<>box]:
-                    if values[twin] == digits:
-                        for other_box in [other_box for other_box in unit if (len(values[other_box])>1 and values[other_box] <> digits)]:
-                            for digit in digits:
-                                values[other_box] = values[other_box].replace(digit,'')
+    for unit in unitlist:                       # scroll all units
+        twin = find_twins(values, unit)         # 
+        if twin != None:
+            values = eliminate_twins(values, unit, values[twin])
+    return values   
+
+def find_twins(values, unit):
+    twin =[]
+    two_digits = [box for box in unit if len(values[box]) == 2] # list all boxes with two digits in unit
+    if len(two_digits)>1:                                       # check if there is more than one two-digit box
+        for box in two_digits:                                  # scroll two-digit boxes of the unit
+            digits = values[box]
+            for twin in [twin for twin in two_digits if twin != box]:   # look for twins
+                if values[twin] == digits:
+                    return twin      
+
+def eliminate_twins(values, unit, twin_value):
+    for box in [box for box in unit if ( values[box] != twin_value and len(values[box]) > 1 )]:    # list unsolved boxes in unit which are not twins 
+        for digit in twin_value:                               
+            values[box] = values[box].replace(digit,'')         # remove all twin digits from box value
     return values
-
-def grid_values(grid):
-    """
-    Convert grid into a dict of {square: char} with '123456789' for empties.
-    Input: A grid in string form.
-    Output: A grid in dictionary form
-            Keys: The boxes, e.g., 'A1'
-            Values: The value in each box, e.g., '8'. If the box has no value, then the value will be '123456789'.
-    """
-    chars = []
-    digits = '123456789'
-    for c in grid:
-        if c in digits:
-            chars.append(c)
-        if c == '.':
-            chars.append(digits)
-    assert len(chars) == 81
-    return dict(zip(boxes, chars))
-
-def display(values):
-    """
-    Display the values as a 2-D grid.
-    Input: The sudoku in dictionary form
-    Output: None
-    """
-    width = 1+max(len(values[box]) for box in values.keys())
-    line = '+'.join(['-'*(width*3)]*3)
-    for r in rows:
-        print(''.join(values[r+c].center(width)+('|' if c in '36' else '')
-                      for c in cols))
-        if r in 'CF': print(line)
-    print
-
+        
 def eliminate(values):
     """
     Go through all the boxes, and whenever there is a box with a value, eliminate this value from the values of all its peers.
